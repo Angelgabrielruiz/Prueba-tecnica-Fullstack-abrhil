@@ -1,0 +1,26 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+db.sqlite3
+
+# Django
+*.log
+staticfiles/
+media/
+
+# Env vars
+.env
+.env.local
+
+# Node / React (para cuando agreguemos el frontend)
+node_modules/
+dist/
+build/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store

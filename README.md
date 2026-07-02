@@ -1,58 +1,3 @@
-# Jira Lite — Gestor de Proyectos Colaborativo
-
-Prueba técnica fullstack: backend en Django + DRF, frontend en React + TypeScript, PostgreSQL, Docker.
-
-## Stack técnico
-
-- **Backend:** Django 5.2 + Django REST Framework
-- **Base de datos:** PostgreSQL 16 (Docker)
-- **Autenticación:** JWT (`djangorestframework-simplejwt`)
-- **Filtros:** `django-filter`
-- **Frontend:** React + TypeScript *(pendiente)*
-- **Infraestructura:** Docker + docker-compose
-
-## Cómo levantar el proyecto (estado actual)
-
-```bash
-# 1. Levantar Postgres
-docker compose up -d
-
-# 2. Crear entorno virtual e instalar dependencias
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Variables de entorno (crear .env en la raíz)
-DB_NAME=jira_lite
-DB_USER=jira_user
-DB_PASSWORD=jira_pass
-DB_HOST=localhost
-DB_PORT=5432
-
-# 4. Migrar
-python manage.py migrate
-
-# 5. Correr el servidor
-python manage.py runserver
-```
-
----
-
-## Modelo de datos
-
-### Diagrama entidad-relación
-
-```
-users ──< project_members >── projects
-projects ──< tasks
-users ──< tasks (assignee, created_by)
-tasks ──< comments
-users ──< comments
-projects ──< activity
-tasks ──< activity (opcional)
-users ──< activity (opcional)
-```
-
 ### Entidades
 
 | Entidad | Propósito |
@@ -117,6 +62,25 @@ Se agregaron índices compuestos pensando en los patrones de consulta esperados 
 
 El modelo está normalizado a 3FN: no hay campos derivados almacenados (ej. no se guarda un "total de tareas completadas" en `Project`, se calcula on-demand vía agregación SQL) y no hay duplicación de datos entre entidades. Esta decisión prioriza consistencia sobre performance de lectura; si el volumen de datos creciera significativamente, sería candidato a desnormalización selectiva (ver sección de mejoras posibles).
 
+#### 10. Patrón de serializers separados por lectura/escritura (read/write split)
+
+Cada entidad principal (`Project`, `Task`, `Comment`) tiene dos serializers: uno de lectura (`*Serializer`, con relaciones anidadas resumidas — ej. `UserSummarySerializer`) y uno de escritura (`*WriteSerializer`, con relaciones como IDs planos vía `PrimaryKeyRelatedField` o campos explícitos). Esto evita dos problemas: sobreexponer campos internos del modelo `User` en las respuestas, y forzar al cliente a mandar objetos anidados completos cuando solo necesita referenciar un ID existente.
+
+Campos como `created_by` (`Project`) o `user` (`Comment`) están **excluidos deliberadamente** de los serializers de escritura — se asignan en el `ViewSet` a partir de `request.user`, nunca confiando en lo que el cliente mande en el body, para evitar que un usuario pueda crear recursos "a nombre de" otro.
+
+**Nota de implementación:** los `ViewSet` con este patrón sobrescriben `create()` (y deben hacerlo también en `update`/`partial_update`) para serializar la respuesta con el serializer de **lectura** sobre la instancia ya guardada — el comportamiento default de DRF usaría el serializer de escritura también para el output, devolviendo una respuesta incompleta (sin `id`, sin relaciones anidadas).
+
+#### 11. Autorización en dos capas: queryset filtrado + permission class
+
+El control de acceso "solo miembros ven proyectos" se implementa en dos capas complementarias, no una sola:
+
+- **`get_queryset()` filtrado** (`Project.objects.filter(members__user=request.user)`): es la primera línea de defensa y la única forma correcta de cubrir `list` — un endpoint de listado no tiene un objeto individual sobre el cual evaluar permisos, así que la restricción debe vivir en la consulta misma, nunca en un filtrado posterior en memoria.
+- **`IsProjectMember.has_object_permission()`**: cubre `retrieve`, `update`, `destroy` — casos donde ya existe un objeto específico cargado. Diferencia lectura de escritura: cualquier miembro puede ver, solo miembros con `role="admin"` pueden modificar/eliminar.
+
+#### 12. Creación de proyecto como operación transaccional
+
+`ProjectViewSet.create()` envuelve en `transaction.atomic()` la creación del `Project` **y** de su `ProjectMember` inicial (el creador, con `role="admin"`) en una sola unidad — si cualquiera de las dos falla, ninguna se persiste. Sin esto, sería posible terminar con un proyecto huérfano sin ningún admin asignado.
+
 #### Posibles mejoras / alternativas consideradas
 
 - `Task.created_by` podría usar `PROTECT` en vez de `CASCADE` para nunca perder autoría histórica de tareas.
@@ -138,13 +102,24 @@ El modelo está normalizado a 3FN: no hay campos derivados almacenados (ej. no s
 - Modelo `Activity` + sistema de signals para logging automático de creación de tareas
 - Todas las migraciones aplicadas y verificadas contra Postgres real
 
+### ✅ Completado (Día 2 — CRUD core + permisos + auth)
+
+- Serializers de lectura/escritura para `Project`, `Task`, `Comment` (patrón read/write split)
+- `UserSummarySerializer` compartido para representación anidada de usuario en otras entidades
+- Validación cross-field en `TaskWriteSerializer`: el `assignee` debe ser miembro del proyecto de la tarea
+- `IsProjectMember`: permission class con lectura para cualquier miembro, escritura solo para admins
+- `ProjectViewSet` completo: queryset filtrado por membresía, `create()` transaccional (proyecto + membership admin en una sola operación), respuesta correcta con serializer de lectura
+- Autenticación JWT completa: registro (`/api/auth/register/`, devuelve usuario + tokens), login (`/api/auth/login/`), refresh (`/api/auth/login/refresh/`)
+- Passwords hasheados vía `create_user()` + validación estándar de Django (`validate_password`)
+- Flujo completo probado de punta a punta: registro → login → creación de proyecto autenticada → listado filtrado por membresía
+
 ### ⏳ Pendiente
 
-- Serializers y ViewSets (CRUD)
-- Permisos (solo miembros ven/modifican proyectos)
+- Resolver signal de `task_status_changed` (comparar status anterior vs nuevo)
+- Signal de `comment_added`
+- ViewSets de `Task` y `Comment`
 - Queries SQL manuales (top 5 usuarios, promedio de tiempo de finalización)
 - Endpoint de dashboard agregado
-- Signals adicionales (cambio de status, comentarios)
 - Frontend React + TypeScript
 - Dockerización completa (backend + frontend + Postgres)
 - Sección de arquitectura (escalabilidad, caching, concurrencia)

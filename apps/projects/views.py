@@ -1,9 +1,10 @@
 from django.db import transaction
 from rest_framework import viewsets, permissions
+from rest_framework.response import Response
 
-from .models import Project, ProjectMember
-from .serializers import ProjectSerializer, ProjectWriteSerializer
-from .permissions import IsProjectMember
+from apps.projects.models import ProjectMember, Project
+from apps.projects.permissions import IsProjectMember
+from apps.projects.serializers import ProjectSerializer, ProjectWriteSerializer
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -22,9 +23,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return ProjectWriteSerializer
         return ProjectSerializer
 
-    @transaction.atomic
-    def perform_create(self, serializer):
-        project = serializer.save(created_by=self.request.user)
-        ProjectMember.objects.create(
-            project=project, user=self.request.user, role="admin"
-        )
+    def create(self, request, *args, **kwargs):
+        write_serializer = self.get_serializer(data=request.data)
+        write_serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            project = write_serializer.save(created_by=request.user)
+            ProjectMember.objects.create(
+                project=project, user=request.user, role="admin"
+            )
+
+        read_serializer = ProjectSerializer(project, context=self.get_serializer_context())
+        return Response(read_serializer.data, status=201)

@@ -2,6 +2,11 @@
 
 Gestor de proyectos simplificado (tipo Jira) construido con Django REST Framework, PostgreSQL y React + TypeScript.
 
+> ## 🚀 Deploy funcional: **https://abrhil.angeldev.fun/**
+>
+> Corriendo en un VPS propio (Ubuntu 24.04) vía Docker Compose, detrás de Nginx con HTTPS
+> (Let's Encrypt). API en `https://abrhil-api.angeldev.fun/api`.
+
 ---
 
 ## Estructura del repositorio
@@ -403,6 +408,13 @@ silenciosamente con un valor implícito. Se aplicó el mismo criterio en `config
 default en código es `False` (fail-secure), no `True`, precisamente para el escenario descrito abajo.
 
 ### Notas para desplegar en un VPS
+
+**Ya desplegado**: https://abrhil.angeldev.fun/ (frontend) y `https://abrhil-api.angeldev.fun/api`
+(backend), corriendo con este mismo `docker-compose.yml` en un VPS Ubuntu 24.04 que ya servía otro
+proyecto — sin tocar ese otro servicio. `db`, `backend` y `frontend` solo escuchan en `127.0.0.1`
+(ningún puerto de Docker expuesto directo a internet); Nginx del host hace de reverse proxy por
+dominio hacia esos puertos locales, y Certbot (Let's Encrypt) emitió un certificado por subdominio,
+igual que el resto de sitios ya configurados en ese servidor.
 
 `docker-compose.yml` ya obliga (`${VAR:?mensaje}`) a definir `DEBUG`, `SECRET_KEY`,
 `ALLOWED_HOSTS` y `CORS_ALLOWED_ORIGINS` en el `.env` antes de levantar el contenedor — si falta

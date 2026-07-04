@@ -2,19 +2,32 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 
 load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def require_env(key):
+    """
+    Sin default hardcodeado: credenciales reales no deben vivir en el código
+    fuente (ni siquiera como "valor de ejemplo" que termina siendo el valor
+    real usado en dev). Falla explícito si falta config/.env — ver
+    config/.env.example para la plantilla.
+    """
+    value = os.getenv(key)
+    if not value:
+        raise ImproperlyConfigured(
+            f"Falta {key} en el entorno. Copia config/.env.example a config/.env y complétalo."
+        )
+    return value
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "django-insecure-t+6a(i!8d=d4j85o=evz00aysfos$v6h$&9lqx^^zaxsg59t7p",
-)
+SECRET_KEY = require_env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "True") == "True"
@@ -83,10 +96,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME", "jira_lite"),
-        "USER": os.getenv("DB_USER", "jira_user"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "jira_pass"),
-        "HOST": os.getenv("DB_HOST", "localhost"),
+        "NAME": require_env("DB_NAME"),
+        "USER": require_env("DB_USER"),
+        "PASSWORD": require_env("DB_PASSWORD"),
+        "HOST": require_env("DB_HOST"),
         "PORT": os.getenv("DB_PORT", "5432"),
     }
 }

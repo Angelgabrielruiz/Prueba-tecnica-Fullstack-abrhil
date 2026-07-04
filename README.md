@@ -363,6 +363,17 @@ ambas imágenes, arranque de los tres contenedores, headers CORS correctos entre
 `http://localhost:5173`) y `backend`, y fallback de SPA para rutas profundas (`/projects/1/tasks`
 devuelve `200` con `index.html`, no `404`).
 
+**Sin defaults de credenciales en el código versionado:** la primera versión de `docker-compose.yml`
+usaba `${DB_PASSWORD:-jira_pass}` (sintaxis de "valor por defecto" de Compose) para variables
+sensibles — esto es cómodo para desarrollo local, pero significa que un valor con forma de
+credencial real queda escrito en un archivo versionado y visible en el repositorio público de
+GitHub, aunque sea un placeholder. Se cambió a `${DB_PASSWORD:?mensaje}` (variable *requerida*): si
+falta `.env`, Compose falla de inmediato con un mensaje explicando qué copiar, en vez de arrancar
+silenciosamente con un valor implícito. Se aplicó el mismo criterio en `config/settings.py`
+(`SECRET_KEY`, credenciales de base de datos) vía un helper `require_env()` que lanza
+`ImproperlyConfigured` con instrucciones si la variable no está definida — `DEBUG`, `ALLOWED_HOSTS`
+y `DB_PORT` conservan un default razonable porque no son datos sensibles.
+
 ## Arquitectura
 
 ### 1. ¿Cómo escalarías este sistema?

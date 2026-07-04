@@ -26,6 +26,8 @@ export function TasksTab() {
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
   const [dueBefore, setDueBefore] = useState("");
   const [modal, setModal] = useState<ModalState>(null);
+  const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
 
   const tasksQuery = useQuery({
     queryKey: ["tasks", project.id, debouncedSearch, assigneeFilter, priorityFilter, dueBefore],
@@ -71,6 +73,17 @@ export function TasksTab() {
       tasks: tasks.filter((t) => t.status === status),
     }));
   }, [tasksQuery.data]);
+
+  function handleDropOnColumn(status: TaskStatus) {
+    if (draggedTaskId != null) {
+      const task = tasksQuery.data?.find((t) => t.id === draggedTaskId);
+      if (task && task.status !== status) {
+        updateMutation.mutate({ id: draggedTaskId, payload: { status } });
+      }
+    }
+    setDraggedTaskId(null);
+    setDragOverStatus(null);
+  }
 
   if (tasksQuery.isLoading) return <LoadingState />;
   if (tasksQuery.isError) return <ErrorState />;
@@ -134,7 +147,23 @@ export function TasksTab() {
           return (
             <div key={col.status} className="kanban-column">
               <div className="kanban-column-bar" style={{ background: meta.color }} />
-              <div className="kanban-column-body" style={{ background: meta.bg }}>
+              <div
+                className="kanban-column-body"
+                style={{
+                  background: meta.bg,
+                  outline: dragOverStatus === col.status ? `2px dashed ${meta.color}` : "none",
+                  outlineOffset: -4,
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOverStatus !== col.status) setDragOverStatus(col.status);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleDropOnColumn(col.status);
+                }}
+              >
                 <div className="kanban-column-header">
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span className="dot" style={{ background: meta.color }} />
@@ -146,7 +175,21 @@ export function TasksTab() {
                 </div>
                 <div className="kanban-tasks">
                   {col.tasks.map((task) => (
-                    <TaskCard key={task.id} task={task} onClick={() => setModal({ type: "detail", task })} />
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onClick={() => setModal({ type: "detail", task })}
+                      dragging={draggedTaskId === task.id}
+                      onDragStart={(e) => {
+                        setDraggedTaskId(task.id);
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(task.id));
+                      }}
+                      onDragEnd={() => {
+                        setDraggedTaskId(null);
+                        setDragOverStatus(null);
+                      }}
+                    />
                   ))}
                 </div>
                 <button

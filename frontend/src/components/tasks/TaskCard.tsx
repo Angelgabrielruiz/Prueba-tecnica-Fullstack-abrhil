@@ -3,9 +3,24 @@ import { PriorityPill } from "../Pills";
 import { dueLabel, isOverdue } from "../../utils/format";
 import type { Task } from "../../types";
 
-export function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
+interface TaskCardProps {
+  task: Task;
+  onClick: () => void;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
+  dragging?: boolean;
+}
+
+export function TaskCard({ task, onClick, onDragStart, onDragEnd, dragging }: TaskCardProps) {
   return (
-    <div className="task-card" onClick={onClick}>
+    <div
+      className="task-card"
+      onClick={onClick}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      style={{ opacity: dragging ? 0.4 : 1, cursor: dragging ? "grabbing" : "pointer" }}
+    >
       <div className="task-card-title">{task.title}</div>
       <div className="task-card-row">
         <PriorityPill priority={task.priority} />

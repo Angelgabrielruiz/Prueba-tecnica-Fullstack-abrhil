@@ -340,8 +340,11 @@ no como una copia estática del HTML del mockup.
    la query SQL quedara implementada en el backend pero sin ningún reflejo visible en el frontend.
 4. **Tareas** — tablero kanban (Por hacer / En progreso / Hecho) con búsqueda debounced, filtros
    compactos (dropdown) por asignado/prioridad y por fecha límite (todo resuelto vía query params
-   al backend, no en el cliente). Modal de creación/edición y modal de detalle con cambio de
-   estado y comentarios.
+   al backend, no en el cliente). Las tarjetas se pueden arrastrar entre columnas (Drag and Drop
+   API nativo del navegador — `draggable`, `onDragOver`/`onDrop` — sin librería adicional) para
+   cambiar el estado, igual que en Jira; también se puede cambiar el estado desde el modal de
+   detalle sin arrastrar. Modal de creación/edición y modal de detalle con cambio de estado y
+   comentarios.
 5. **Actividad** — timeline vertical del historial del proyecto con chips de filtro por tipo de
    evento, consumiendo el nuevo endpoint `GET /api/activity/`.
 6. **Miembros del proyecto** — accesible desde el avatar-stack en el header del proyecto (visible

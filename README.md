@@ -325,11 +325,19 @@ no como una copia estática del HTML del mockup.
 2. **Lista de proyectos** — grid de tarjetas con barra de progreso (tareas completadas/total,
    calculado en el cliente a partir de `/api/tasks/`) y avatares de miembros apilados.
 3. **Dashboard del proyecto** — tarjetas de métricas, barra de tareas por estado, actividad
-   reciente (con link a la pestaña completa), top colaboradores (consumiendo directamente
-   `GET /api/dashboard/`, las dos queries SQL manuales del backend) **y una lista de tareas**
+   reciente (con link a la pestaña completa), top colaboradores **y una lista de tareas**
    (título, estado, prioridad, asignado, fecha límite; ordenada por pendientes primero y fecha más
    próxima) — el enunciado pide "métricas del backend" y "lista de tareas" como dos piezas
    separadas del dashboard, no solo agregados.
+
+   **"Top colaboradores"** muestra a *todos* los miembros del proyecto (con 0 si no han completado
+   nada), calculado en el cliente a partir de las tareas ya cargadas — así se ve el equipo completo,
+   no solo a quien va ganando. Pero el resultado real de la query SQL manual A
+   (`get_top_completers_by_project()`, top 5 por proyecto vía `ROW_NUMBER() OVER PARTITION BY`,
+   expuesta en `GET /api/dashboard/`) no se descarta: se cruza con la lista de miembros y se
+   muestra como una medalla numerada (`#1`, `#2`...) sobre el avatar de quien SÍ aparece en ese top 5
+   según el backend. Esto evita el problema de que, al pedir "que se vean todos los colaboradores",
+   la query SQL quedara implementada en el backend pero sin ningún reflejo visible en el frontend.
 4. **Tareas** — tablero kanban (Por hacer / En progreso / Hecho) con búsqueda debounced, filtros
    compactos (dropdown) por asignado/prioridad y por fecha límite (todo resuelto vía query params
    al backend, no en el cliente). Modal de creación/edición y modal de detalle con cambio de

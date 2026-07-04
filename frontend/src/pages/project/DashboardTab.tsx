@@ -46,10 +46,22 @@ export function DashboardTab() {
         completedCounts.set(t.assignee.id, (completedCounts.get(t.assignee.id) ?? 0) + 1);
       }
     }
+
+    // Ranking real de la query SQL manual (ROW_NUMBER() OVER PARTITION BY project_id),
+    // no un cálculo del cliente — solo cubre el top 5 por proyecto, que es lo que pide el enunciado.
+    const sqlRanks = new Map<number, number>();
+    (dashboardQuery.data?.top_completers_by_project ?? [])
+      .filter((row) => row.project_id === project.id)
+      .forEach((row, index) => sqlRanks.set(row.user_id, index + 1));
+
     return project.members
-      .map((m) => ({ user: m.user, completedCount: completedCounts.get(m.user.id) ?? 0 }))
+      .map((m) => ({
+        user: m.user,
+        completedCount: completedCounts.get(m.user.id) ?? 0,
+        sqlRank: sqlRanks.get(m.user.id),
+      }))
       .sort((a, b) => b.completedCount - a.completedCount);
-  }, [tasksQuery.data, project.members]);
+  }, [tasksQuery.data, dashboardQuery.data, project.members, project.id]);
 
   const avgCompletion = dashboardQuery.data?.avg_completion_time_by_project.find(
     (row) => row.project_id === project.id,
@@ -144,11 +156,39 @@ export function DashboardTab() {
         </div>
 
         <div className="card panel">
-          <div className="panel-title">Top colaboradores</div>
+          <div className="panel-title" style={{ marginBottom: 2 }}>Top colaboradores</div>
+          <div style={{ fontSize: 11.5, color: "var(--text-placeholder)", marginBottom: 16 }}>
+            El # junto al avatar es el ranking real de la query SQL (top 5 por proyecto)
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {collaborators.map(({ user, completedCount }) => (
+            {collaborators.map(({ user, completedCount, sqlRank }) => (
               <div key={user.id} className="top-member-row">
-                <Avatar id={user.id} name={user.name} size={30} />
+                <div style={{ position: "relative" }}>
+                  <Avatar id={user.id} name={user.name} size={30} />
+                  {sqlRank && (
+                    <span
+                      title="Posición en la query SQL de top completadores"
+                      style={{
+                        position: "absolute",
+                        bottom: -4,
+                        right: -6,
+                        background: colors.gold,
+                        color: "#fff",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        borderRadius: "50%",
+                        width: 16,
+                        height: 16,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "1.5px solid #fff",
+                      }}
+                    >
+                      {sqlRank}
+                    </span>
+                  )}
+                </div>
                 <div style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{user.name}</div>
                 <div
                   style={{

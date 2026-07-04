@@ -78,45 +78,37 @@ export function TasksTab() {
       <div className="tasks-toolbar">
         <input
           className="input"
-          style={{ width: 220 }}
+          style={{ width: 190 }}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar tareas…"
         />
-        <div className="chip-group">
-          <button
-            className={"chip" + (assigneeFilter === "all" ? " active" : "")}
-            onClick={() => setAssigneeFilter("all")}
-          >
-            Todos
-          </button>
+        <select
+          className="filter-select"
+          value={assigneeFilter}
+          onChange={(e) =>
+            setAssigneeFilter(e.target.value === "all" ? "all" : Number(e.target.value))
+          }
+        >
+          <option value="all">Todos los asignados</option>
           {project.members.map((m) => (
-            <button
-              key={m.user.id}
-              className={"chip" + (assigneeFilter === m.user.id ? " active" : "")}
-              onClick={() => setAssigneeFilter(m.user.id)}
-            >
+            <option key={m.user.id} value={m.user.id}>
               {m.user.name}
-            </button>
+            </option>
           ))}
-        </div>
-        <div className="chip-group">
-          <button
-            className={"chip" + (priorityFilter === "all" ? " active" : "")}
-            onClick={() => setPriorityFilter("all")}
-          >
-            Todas
-          </button>
+        </select>
+        <select
+          className="filter-select"
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value as TaskPriority | "all")}
+        >
+          <option value="all">Toda prioridad</option>
           {(Object.keys(priorityMeta) as TaskPriority[]).map((p) => (
-            <button
-              key={p}
-              className={"chip" + (priorityFilter === p ? " active" : "")}
-              onClick={() => setPriorityFilter(p)}
-            >
+            <option key={p} value={p}>
               {priorityMeta[p].label}
-            </button>
+            </option>
           ))}
-        </div>
+        </select>
         <button
           className="btn btn-primary"
           style={{ marginLeft: "auto" }}
@@ -131,35 +123,38 @@ export function TasksTab() {
           const meta = statusMeta[col.status];
           return (
             <div key={col.status} className="kanban-column">
-              <div className="kanban-column-header">
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="dot" style={{ background: meta.color }} />
-                  <span style={{ fontWeight: 800, fontSize: 13.5 }}>{meta.label}</span>
+              <div className="kanban-column-bar" style={{ background: meta.color }} />
+              <div className="kanban-column-body" style={{ background: meta.bg }}>
+                <div className="kanban-column-header">
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="dot" style={{ background: meta.color }} />
+                    <span style={{ fontWeight: 800, fontSize: 13.5 }}>{meta.label}</span>
+                  </div>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>
+                    {col.tasks.length}
+                  </span>
                 </div>
-                <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>
-                  {col.tasks.length}
-                </span>
+                <div className="kanban-tasks">
+                  {col.tasks.map((task) => (
+                    <TaskCard key={task.id} task={task} onClick={() => setModal({ type: "detail", task })} />
+                  ))}
+                </div>
+                <button
+                  style={{
+                    border: "1.5px dashed #C7D3E8",
+                    background: "none",
+                    borderRadius: 9,
+                    padding: 8,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setModal({ type: "form", defaultStatus: col.status })}
+                >
+                  + Añadir tarea
+                </button>
               </div>
-              <div className="kanban-tasks">
-                {col.tasks.map((task) => (
-                  <TaskCard key={task.id} task={task} onClick={() => setModal({ type: "detail", task })} />
-                ))}
-              </div>
-              <button
-                style={{
-                  border: "1.5px dashed #C7D3E8",
-                  background: "none",
-                  borderRadius: 9,
-                  padding: 8,
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                }}
-                onClick={() => setModal({ type: "form", defaultStatus: col.status })}
-              >
-                + Añadir tarea
-              </button>
             </div>
           );
         })}

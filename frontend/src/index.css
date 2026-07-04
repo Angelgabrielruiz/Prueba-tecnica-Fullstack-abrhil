@@ -231,21 +231,17 @@ a {
   min-height: 100vh;
   position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
   background: var(--auth-bg);
-  padding: 48px 20px;
 }
 
 .auth-wrap {
   position: relative;
-  width: 1000px;
-  max-width: 100%;
+  width: 100%;
 }
 
 .auth-badge {
   position: absolute;
-  top: -24px;
+  top: 22px;
   left: 50%;
   transform: translateX(-50%);
   background: #fff;
@@ -260,20 +256,19 @@ a {
 
 .auth-card {
   background: #fff;
-  border-radius: 28px;
-  box-shadow: 0 30px 80px rgba(4, 25, 70, 0.2);
   display: flex;
-  min-height: 600px;
+  min-height: 100vh;
   animation: fadeUp 0.5s ease;
   overflow: hidden;
 }
 
 .auth-form-side {
-  flex: 0 0 380px;
+  flex: 0 0 420px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 24px 30px;
+  padding: 24px 56px;
+  overflow-y: auto;
 }
 
 .auth-art-side {
@@ -332,6 +327,7 @@ a {
   border: none;
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
   font-size: 14px;
   font-weight: 600;
   background: none;
@@ -501,28 +497,43 @@ a {
   align-items: center;
   justify-content: space-between;
   margin-top: 16px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
 }
 
 .tabs-list {
   display: flex;
-  gap: 4px;
+  gap: 3px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  padding: 4px;
+  border-radius: 12px;
 }
 
 .tab-btn {
   border: none;
-  background: none;
   cursor: pointer;
-  padding: 10px 16px;
-  font-size: 14px;
+  padding: 8px 18px;
+  font-size: 13.5px;
   font-weight: 700;
+  text-decoration: none;
+  display: inline-block;
   color: var(--text-muted);
-  border-bottom: 2.5px solid transparent;
+  background: transparent;
+  border-radius: 9px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.tab-btn:hover:not(.active) {
+  color: var(--text-secondary);
 }
 
 .tab-btn.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 4px 12px rgba(2, 123, 255, 0.35);
 }
 
 /* ---------- dashboard ---------- */
@@ -632,6 +643,23 @@ a {
   flex-wrap: wrap;
 }
 
+.filter-select {
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--text-secondary);
+  padding: 7px 12px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  max-width: 170px;
+}
+
+.filter-select:focus {
+  border-color: var(--accent);
+}
+
 .chip-group {
   display: flex;
   gap: 6px;
@@ -649,12 +677,25 @@ a {
 .kanban-column {
   flex: 1;
   min-width: 270px;
-  background: var(--column-bg);
   border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.kanban-column-bar {
+  height: 4px;
+  flex-shrink: 0;
+}
+
+.kanban-column-body {
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
 }
 
 .kanban-column-header {

@@ -165,13 +165,9 @@ export function AuthPage() {
 
             <div className="auth-logo-mark">
               <div style={{ width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.12)", position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", filter: "blur(6px)" }} />
-              <svg width="150" height="150" viewBox="0 0 34 34" style={{ position: "relative", filter: "drop-shadow(0 18px 30px rgba(2,12,40,0.35))" }}>
-                <circle cx="17" cy="17" r="16" fill="#fff" />
-                <path d="M17,17 L17,1 A16,16 0 0,1 33,17 Z" fill="#2E8B57" />
-                <path d="M17,17 L33,17 A16,16 0 0,1 17,33 Z" fill="#B8860C" />
-                <path d="M17,17 L17,33 A16,16 0 0,1 1,17 Z" fill="#027BFF" />
-                <path d="M17,17 L1,17 A16,16 0 0,1 17,1 Z" fill="#C0392B" />
-              </svg>
+              <div style={{ position: "relative", filter: "drop-shadow(0 18px 30px rgba(2,12,40,0.35))" }}>
+                <Logo size={150} />
+              </div>
             </div>
 
             <div style={{ position: "absolute", bottom: 32, left: 0, right: 0, textAlign: "center", padding: "0 30px" }}>

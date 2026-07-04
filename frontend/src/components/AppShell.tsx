@@ -5,6 +5,7 @@ import { useAuth } from "../auth/useAuth";
 import { colorForId } from "../theme/tokens";
 import { Avatar } from "./Avatar";
 import { Logo } from "./Logo";
+import { ProjectsIcon } from "./icons";
 
 export function AppShell() {
   const { user, logout } = useAuth();
@@ -33,7 +34,7 @@ export function AppShell() {
               "sidebar-nav-btn" + (isActive ? " active" : "")
             }
           >
-            <span style={{ width: 16, height: 16, borderRadius: 4, background: "currentColor", opacity: 0.85 }} />
+            <ProjectsIcon />
             Proyectos
           </NavLink>
         </div>

@@ -1,12 +1,17 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useOutletContext } from "react-router-dom";
-import { createTask, listTasks, updateTask } from "../../api/tasks";
+import { archiveTask, createTask, deleteTask, listTasks, unarchiveTask, updateTask } from "../../api/tasks";
+import { useAuth } from "../../auth/useAuth";
+import { Avatar } from "../../components/Avatar";
 import { ErrorState, LoadingState } from "../../components/Feedback";
+import { PriorityPill } from "../../components/Pills";
+import { ArchiveIcon } from "../../components/icons";
 import { TaskCard } from "../../components/tasks/TaskCard";
 import { TaskDetailModal } from "../../components/tasks/TaskDetailModal";
 import { TaskFormModal } from "../../components/tasks/TaskFormModal";
 import { useDebounce } from "../../hooks/useDebounce";
+import { formatDateTime } from "../../utils/format";
 import { kanbanColumns, priorityMeta, statusMeta } from "../../theme/tokens";
 import type { Task, TaskPriority, TaskStatus, TaskWrite } from "../../types";
 import type { ProjectTabContext } from "./ProjectDetailPage";
@@ -18,19 +23,24 @@ type ModalState =
 
 export function TasksTab() {
   const { project } = useOutletContext<ProjectTabContext>();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isAdmin = project.members.some((m) => m.user.id === user?.id && m.role === "admin");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [assigneeFilter, setAssigneeFilter] = useState<number | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
   const [dueBefore, setDueBefore] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
 
   const tasksQuery = useQuery({
-    queryKey: ["tasks", project.id, debouncedSearch, assigneeFilter, priorityFilter, dueBefore],
+    queryKey: [
+      "tasks", project.id, debouncedSearch, assigneeFilter, priorityFilter, dueBefore, showArchived,
+    ],
     queryFn: () =>
       listTasks({
         project: project.id,
@@ -38,6 +48,7 @@ export function TasksTab() {
         assignee: assigneeFilter === "all" ? undefined : assigneeFilter,
         priority: priorityFilter === "all" ? undefined : priorityFilter,
         due_date__lte: dueBefore || undefined,
+        is_archived: showArchived ? true : undefined,
       }),
   });
 
@@ -63,6 +74,32 @@ export function TasksTab() {
       setModal((current) =>
         current?.type === "detail" ? { type: "detail", task: updated } : null,
       );
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: (id: number) => archiveTask(id),
+    onSuccess: () => {
+      invalidateAfterMutation();
+      setModal(null);
+    },
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: (id: number) => unarchiveTask(id),
+    onSuccess: (updated) => {
+      invalidateAfterMutation();
+      setModal((current) =>
+        current?.type === "detail" ? { type: "detail", task: updated } : null,
+      );
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteTask(id),
+    onSuccess: () => {
+      invalidateAfterMutation();
+      setModal(null);
     },
   });
 
@@ -133,14 +170,74 @@ export function TasksTab() {
           title="Vence antes de"
         />
         <button
-          className="btn btn-primary"
-          style={{ marginLeft: "auto" }}
-          onClick={() => setModal({ type: "form" })}
+          className={showArchived ? "btn btn-primary" : "btn btn-secondary"}
+          style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}
+          onClick={() => setShowArchived((v) => !v)}
         >
-          + Nueva tarea
+          <ArchiveIcon size={13} />
+          {showArchived ? "Ver tablero" : "Ver archivadas"}
         </button>
+        {!showArchived && (
+          <button className="btn btn-primary" onClick={() => setModal({ type: "form" })}>
+            + Nueva tarea
+          </button>
+        )}
       </div>
 
+      {showArchived ? (
+        <div className="archived-list" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              fontWeight: 700,
+              color: "var(--text-muted)",
+              marginBottom: 4,
+            }}
+          >
+            <ArchiveIcon size={14} />
+            Estás viendo las tareas archivadas de este proyecto
+          </div>
+          {tasksQuery.data?.length === 0 && (
+            <div style={{ fontSize: 13.5, color: "var(--text-muted)", padding: "12px 0" }}>
+              No hay tareas archivadas.
+            </div>
+          )}
+          {tasksQuery.data?.map((task) => (
+            <div
+              key={task.id}
+              className="task-card"
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+              onClick={() => setModal({ type: "detail", task })}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 13.5 }}>{task.title}</div>
+                <PriorityPill priority={task.priority} />
+                {task.assignee && <Avatar id={task.assignee.id} name={task.assignee.name} size={22} />}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  {task.completed_at ? `Terminada ${formatDateTime(task.completed_at)}` : ""}
+                </span>
+                {isAdmin && (
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: "5px 11px", fontSize: 12.5 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      unarchiveMutation.mutate(task.id);
+                    }}
+                  >
+                    Desarchivar
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
       <div className="kanban-board">
         {columns.map((col) => {
           const meta = statusMeta[col.status];
@@ -212,6 +309,7 @@ export function TasksTab() {
           );
         })}
       </div>
+      )}
 
       {modal?.type === "form" && (
         <TaskFormModal
@@ -234,11 +332,16 @@ export function TasksTab() {
       {modal?.type === "detail" && (
         <TaskDetailModal
           task={modal.task}
+          isAdmin={isAdmin}
           onClose={() => setModal(null)}
           onEdit={() => setModal({ type: "form", task: modal.task })}
           onStatusChange={(status) =>
             updateMutation.mutate({ id: modal.task.id, payload: { status } })
           }
+          onArchive={() => archiveMutation.mutate(modal.task.id)}
+          onUnarchive={() => unarchiveMutation.mutate(modal.task.id)}
+          onDelete={() => deleteMutation.mutate(modal.task.id)}
+          deleting={deleteMutation.isPending}
         />
       )}
     </>

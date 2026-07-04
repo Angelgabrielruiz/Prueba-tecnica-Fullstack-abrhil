@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createComment, listComments } from "../../api/comments";
 import { Avatar } from "../Avatar";
+import { ConfirmModal } from "../ConfirmModal";
+import { ArchiveIcon, TrashIcon } from "../icons";
 import { PriorityPill } from "../Pills";
 import { kanbanColumns, statusMeta } from "../../theme/tokens";
 import { dueLabel, formatDateTime } from "../../utils/format";
@@ -9,14 +11,30 @@ import type { Task, TaskStatus } from "../../types";
 
 interface TaskDetailModalProps {
   task: Task;
+  isAdmin: boolean;
   onClose: () => void;
   onEdit: () => void;
   onStatusChange: (status: TaskStatus) => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onDelete: () => void;
+  deleting?: boolean;
 }
 
-export function TaskDetailModal({ task, onClose, onEdit, onStatusChange }: TaskDetailModalProps) {
+export function TaskDetailModal({
+  task,
+  isAdmin,
+  onClose,
+  onEdit,
+  onStatusChange,
+  onArchive,
+  onUnarchive,
+  onDelete,
+  deleting,
+}: TaskDetailModalProps) {
   const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState("");
+  const [showDelete, setShowDelete] = useState(false);
 
   const commentsQuery = useQuery({
     queryKey: ["comments", task.id],
@@ -36,16 +54,105 @@ export function TaskDetailModal({ task, onClose, onEdit, onStatusChange }: TaskD
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ width: 560 }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <div className="modal-title" style={{ lineHeight: 1.3 }}>{task.title}</div>
-          <button className="btn btn-secondary" style={{ flexShrink: 0, padding: "7px 13px" }} onClick={onEdit}>
-            Editar
-          </button>
+          <div className="modal-title" style={{ lineHeight: 1.3 }}>
+            {task.title}
+            {task.is_archived && (
+              <span
+                style={{
+                  marginLeft: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "var(--text-muted)",
+                  background: "var(--bg-muted, #EEF1F6)",
+                  borderRadius: 6,
+                  padding: "2px 7px",
+                  verticalAlign: "middle",
+                }}
+              >
+                Archivada
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <button className="btn btn-secondary" style={{ padding: "7px 13px" }} onClick={onEdit}>
+              Editar
+            </button>
+            {isAdmin && task.status === "done" && !task.is_archived && (
+              <button
+                title="Archivar tarea"
+                onClick={onArchive}
+                style={{
+                  border: "1.5px solid var(--border)",
+                  background: "#fff",
+                  color: "var(--text-muted)",
+                  borderRadius: 8,
+                  width: 34,
+                  height: 34,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <ArchiveIcon size={14} />
+              </button>
+            )}
+            {isAdmin && task.is_archived && (
+              <button
+                title="Desarchivar tarea"
+                onClick={onUnarchive}
+                style={{
+                  border: "1.5px solid var(--border)",
+                  background: "#fff",
+                  color: "var(--text-muted)",
+                  borderRadius: 8,
+                  width: 34,
+                  height: 34,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <ArchiveIcon size={14} />
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                title="Eliminar tarea"
+                onClick={() => setShowDelete(true)}
+                style={{
+                  border: "1.5px solid var(--border)",
+                  background: "#fff",
+                  color: "var(--danger)",
+                  borderRadius: 8,
+                  width: 34,
+                  height: 34,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <TrashIcon size={14} />
+              </button>
+            )}
+          </div>
         </div>
         <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginTop: 10, lineHeight: 1.55 }}>
           {task.description || "Sin descripción."}
         </div>
 
         <div style={{ display: "flex", gap: 22, marginTop: 20, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-placeholder)", marginBottom: 6 }}>
+              CREADO POR
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Avatar id={task.created_by.id} name={task.created_by.name} size={24} />
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{task.created_by.name}</span>
+            </div>
+          </div>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-placeholder)", marginBottom: 6 }}>
               ASIGNADO A
@@ -140,6 +247,16 @@ export function TaskDetailModal({ task, onClose, onEdit, onStatusChange }: TaskD
           </div>
         </div>
       </div>
+
+      {showDelete && (
+        <ConfirmModal
+          title="Eliminar tarea"
+          message={`¿Seguro que quieres eliminar "${task.title}"? Esta acción no se puede deshacer.`}
+          submitting={deleting}
+          onClose={() => setShowDelete(false)}
+          onConfirm={onDelete}
+        />
+      )}
     </div>
   );
 }

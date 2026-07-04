@@ -1,7 +1,8 @@
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, permissions, filters
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -25,15 +26,53 @@ class TaskViewSet(viewsets.ModelViewSet):
         "assignee": ["exact"],
         "due_date": ["exact", "gte", "lte"],
         "created_at": ["gte", "lte"],
+        "is_archived": ["exact"],
     }
     search_fields = ["title", "description"]
 
     def get_queryset(self):
-        return (
+        qs = (
             Task.objects.filter(project__members__user=self.request.user)
             .distinct()
             .select_related("project", "assignee", "created_by")
         )
+        # El listado oculta archivadas por defecto; se piden explícito con
+        # ?is_archived=true. Las acciones de detalle (retrieve/archive/etc.)
+        # no aplican este filtro para no perder de vista una tarea ya archivada.
+        if self.action == "list" and "is_archived" not in self.request.query_params:
+            qs = qs.filter(is_archived=False)
+        return qs
+
+    def _require_admin(self, task):
+        membership = ProjectMember.objects.filter(
+            project=task.project, user=self.request.user
+        ).first()
+        if membership is None or membership.role != "admin":
+            raise PermissionDenied(
+                "Solo el admin del proyecto puede archivar o desarchivar tareas."
+            )
+
+    @action(detail=True, methods=["post"])
+    def archive(self, request, pk=None):
+        task = self.get_object()
+        self._require_admin(task)
+        if task.status != "done":
+            raise ValidationError(
+                {"detail": "Solo se pueden archivar tareas en estado 'Hecho'."}
+            )
+        task.is_archived = True
+        task.save(update_fields=["is_archived"])
+        serializer = TaskSerializer(task, context=self.get_serializer_context())
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def unarchive(self, request, pk=None):
+        task = self.get_object()
+        self._require_admin(task)
+        task.is_archived = False
+        task.save(update_fields=["is_archived"])
+        serializer = TaskSerializer(task, context=self.get_serializer_context())
+        return Response(serializer.data)
 
     def get_serializer_class(self):
         if self.action in ["create", "update", "partial_update"]:

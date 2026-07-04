@@ -47,6 +47,7 @@ export interface Task {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  is_archived: boolean;
 }
 
 export interface TaskWrite {

@@ -15,6 +15,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "id", "project", "assignee", "created_by",
             "title", "description", "status", "priority",
             "due_date", "created_at", "updated_at", "completed_at",
+            "is_archived",
         ]
 
 

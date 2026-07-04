@@ -9,6 +9,7 @@ export interface TaskFilters {
   search?: string;
   due_date__gte?: string;
   due_date__lte?: string;
+  is_archived?: boolean;
 }
 
 export async function listTasks(filters: TaskFilters): Promise<Task[]> {
@@ -33,4 +34,14 @@ export async function updateTask(
 
 export async function deleteTask(id: number): Promise<void> {
   await apiClient.delete(`/tasks/${id}/`);
+}
+
+export async function archiveTask(id: number): Promise<Task> {
+  const { data } = await apiClient.post<Task>(`/tasks/${id}/archive/`);
+  return data;
+}
+
+export async function unarchiveTask(id: number): Promise<Task> {
+  const { data } = await apiClient.post<Task>(`/tasks/${id}/unarchive/`);
+  return data;
 }

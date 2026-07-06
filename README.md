@@ -506,62 +506,9 @@ Checklist real para el `.env` de un VPS:
 
 ## Progreso
 
-### ✅ Completado (Día 1 — Modelado + setup)
+- **Día 1 — Modelado**: entidades (`User`, `Project`, `ProjectMember`, `Task`, `Comment`, `Activity`), migraciones contra PostgreSQL real.
+- **Día 2 — CRUD + auth**: serializers read/write, permisos por rol, JWT (registro/login/refresh), signals de actividad (creación, cambio de estado, comentarios).
+- **Día 3 — SQL + dashboard**: las 2 queries SQL manuales, endpoint de dashboard filtrado por membresía.
+- **Día 4 — Frontend + Docker**: app React completa (login, proyectos, dashboard, kanban, actividad), dockerización de los 3 servicios, invitar/quitar miembros.
+- **Día 5 — Pulido + producción**: archivado/borrado de tareas, mejoras de UI (sidebar, paginación), hardening de `DEBUG`/permisos para VPS, y despliegue real en producción (ver banner al inicio).
 
-- Entorno de desarrollo: PostgreSQL vía Docker, entorno virtual, dependencias instaladas
-- Proyecto Django creado con estructura `apps/` (package by feature)
-- Modelo `User` custom (`AbstractUser` + email único)
-- Modelo `Project` + `ProjectMember` (con rol y unicidad de membresía)
-- Modelo `Task` (choices, índices, campos de fecha diferenciados)
-- Modelo `Comment` (preservación de historial vía `SET_NULL`)
-- Modelo `Activity` + primer signal (`task_created`)
-- Todas las migraciones aplicadas y verificadas contra PostgreSQL real
-
-### ✅ Completado (Día 2 — CRUD completo + permisos + auth + signals)
-
-- Serializers de lectura/escritura para `Project`, `Task`, `Comment` (patrón read/write split)
-- `UserSummarySerializer` compartido para representación anidada de usuario en otras entidades
-- Validación cross-field en `TaskWriteSerializer`: el `assignee` debe ser miembro del proyecto — probada con evidencia real (rechaza con `400` a un usuario no miembro)
-- Permission classes diferenciadas por entidad: `IsProjectMember`, `IsTaskProjectParticipant`, `IsCommentProjectParticipant`
-- `ProjectViewSet`, `TaskViewSet`, `CommentViewSet` — CRUD completo y funcional para las tres entidades, cada uno con queryset filtrado por membresía, `create()`/`update()` corregidos para responder con el serializer de lectura
-- Autenticación JWT completa: registro (`/api/auth/register/`), login (`/api/auth/login/`), refresh (`/api/auth/login/refresh/`)
-- Passwords hasheados vía `create_user()` + validación estándar de Django (`validate_password`)
-- Signal `task_status_changed` resuelto vía `pre_save` + `post_save` (compara status anterior vs nuevo)
-- Signal `comment_added` implementado
-- Flujo completo probado de punta a punta con evidencia real: registro → login → creación de proyecto (con membership automática) → creación de tarea → validación de assignee inválido rechazada → cambio de status → creación de comentario → los tres signals de `Activity` confirmados directamente contra la base de datos
-
-### ✅ Completado (Día 3 — Queries SQL + dashboard)
-
-- `completed_at` se llena y limpia automáticamente vía signal cuando `status` cambia hacia/desde `"done"` — verificado en shell con evidencia real de timestamp
-- Query SQL manual A (top 5 usuarios completadores por proyecto, con `ROW_NUMBER() OVER PARTITION BY`) — implementada y verificada
-- Query SQL manual B (promedio de tiempo de finalización por proyecto, con `EXTRACT(EPOCH...)`) — implementada y verificada
-- Endpoint `GET /api/dashboard/` — expone ambas queries filtradas por membresía del usuario autenticado, probado end-to-end con Postman (`200 OK`)
-- Datos de prueba realistas generados (4 usuarios, 11 tareas completadas con tiempos variados) para validar que el ranking y el promedio reflejan datos reales, no un caso trivial
-- Sección PostgreSQL del README documentada (queries, justificación de indexación, estrategia de optimización)
-
-### ✅ Completado (Día 4 — Reorganización, frontend, Docker)
-
-- Repositorio reorganizado en `backend/` y `frontend/` como proyectos independientes
-- Endpoint `GET /api/activity/` (faltaba: la app existía con signals pero sin serializer/vista/url) — solo lectura, filtrable por proyecto/acción/usuario
-- `django-cors-headers` configurado para que el frontend (otro origen) pueda consumir la API
-- Paginación y filtrado (`django-filter`) activados globalmente en DRF; `filterset_fields` por entidad
-- `RegisterSerializer` extendido para pedir Nombre en vez de username (login funciona con correo, ver punto 14 de Modelado de datos)
-- Corrección: `TaskViewSet.update()` no reflejaba `completed_at` recién calculado por el signal en la respuesta del `PATCH`
-- Frontend React + TypeScript completo (Vite, React Router, TanStack Query, Axios): login/registro, lista de proyectos, dashboard, kanban de tareas con filtros y comentarios, actividad — diseño visual importado desde un mockup propio en claude.ai/design
-- Dockerización completa: `Dockerfile` para backend (gunicorn) y frontend (build de Vite + Nginx), `docker-compose.yml` orquestando `db` + `backend` + `frontend`, verificado extremo a extremo (build, arranque, CORS, fallback de SPA)
-- Sección de arquitectura del README respondida (escalabilidad, caching, concurrencia, mejoras)
-- Invitar/quitar miembros de un proyecto (`POST`/`DELETE /api/projects/{id}/members/`, solo admins) + modal de miembros en el frontend — verificado con dos usuarios reales en navegadores separados (invitación, permisos de no-admin rechazados, el invitado ve el proyecto al iniciar sesión)
-- Corrección: condición de carrera en `/api/auth/register/` (dos registros concurrentes con el mismo correo producían un `500` sin capturar en vez de un `400`), reproducida con requests verdaderamente concurrentes y corregida
-
-### ✅ Completado (Día 5 — UX del tablero, archivado de tareas y hardening para VPS)
-
-- Sidebar colapsable (modo solo-íconos) e íconos de proyecto por iniciales
-- Filtrado por fecha (`due_date__lte`) y lista de tareas resumida en el dashboard, alineado con el spec
-- Ranking de top-completers expuesto como badge visible en el dashboard, no solo en el JSON crudo
-- Drag-and-drop para mover tareas entre columnas del kanban (además del selector de estado ya existente)
-- Edición/borrado de proyecto (solo admin) + panel de auth rediseñado con video de marca
-- CORS en desarrollo: `CORS_ALLOWED_ORIGIN_REGEXES` acepta cualquier puerto de `localhost`/`127.0.0.1` cuando `DEBUG=True`, porque Vite prueba otro puerto libre si el suyo (`5173`) está ocupado y el default fijo bloqueaba el frontend en ese caso
-- Archivado de tareas: `Task.is_archived` (con migración), endpoints `POST /api/tasks/{id}/archive/` y `/unarchive/` (solo admin del proyecto, y solo si `status == "done"`), el listado las excluye por defecto y las mantiene en las queries SQL de dashboard (no se pierden las métricas históricas); toggle "Ver archivadas" en el frontend con acción de desarchivar
-- El modal de detalle de tarea ahora muestra quién la creó (`CREADO POR`), no solo el asignado
-- Borrado de tareas habilitado en el frontend (el `DELETE` ya existía en el backend, restringido a admin) con modal de confirmación
-- Hardening pensado para un despliegue directo en VPS (más allá de Docker): `DEBUG` pasa a tener default `False` en `settings.py` (antes `True`) para que una variable de entorno faltante nunca deje expuesto el modo debug ni el regex de CORS de desarrollo; se agregó `DEFAULT_PERMISSION_CLASSES: (IsAuthenticated,)` global en DRF como red de seguridad además de los permisos explícitos por vista — ver "Notas para desplegar en un VPS" en la sección Docker
